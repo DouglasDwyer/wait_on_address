@@ -1,5 +1,8 @@
 # wait_on_address
 
+[![Crates.io](https://img.shields.io/crates/v/wait_on_address.svg)](https://crates.io/crates/wait_on_address)
+[![Docs.rs](https://docs.rs/wait_on_address/badge.svg)](https://docs.rs/wait_on_address)
+
 Cross platform atomic wait and wake (aka futex) functionality. This crate is a fork of [`atomic-wait`](https://github.com/m-ou-se/atomic-wait), and extends the original code with the following functionality:
 
 - Support for `AtomicI32`, `AtomicI64`, and `AtomicU64`
