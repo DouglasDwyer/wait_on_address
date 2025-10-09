@@ -1,22 +1,59 @@
-use core::sync::atomic::AtomicU32;
-use windows_sys::Win32::System::{
-    Threading::{WaitOnAddress, WakeByAddressAll, WakeByAddressSingle},
-    WindowsProgramming::INFINITE,
+use std::{
+    sync::atomic::{AtomicU32, AtomicU64},
+    time::Duration,
+};
+use windows_sys::Win32::System::Threading::{
+    INFINITE, WaitOnAddress, WakeByAddressAll, WakeByAddressSingle,
 };
 
-#[inline]
-pub fn wait(a: &AtomicU32, expected: u32) {
-    let ptr: *const AtomicU32 = a;
-    let expected_ptr: *const u32 = &expected;
-    unsafe { WaitOnAddress(ptr.cast(), expected_ptr.cast(), 4, INFINITE) };
+use crate::private::AtomicWaitImpl;
+
+impl AtomicWaitImpl for AtomicU32 {
+    type AtomicInner = u32;
+
+    fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
+        unsafe {
+            WaitOnAddress(
+                self as *const _ as *const _,
+                &value as *const _ as *const _,
+                size_of::<Self>(),
+                timeout
+                    .map(|x| x.as_millis().max(u64::MAX as u128) as u32)
+                    .unwrap_or(INFINITE),
+            );
+        }
+    }
+
+    fn notify_all(&self) {
+        unsafe { WakeByAddressAll(self as *const _ as *const _) };
+    }
+
+    fn notify_one(&self) {
+        unsafe { WakeByAddressSingle(self as *const _ as *const _) };
+    }
 }
 
-#[inline]
-pub fn wake_one(ptr: *const AtomicU32) {
-    unsafe { WakeByAddressSingle(ptr.cast()) };
-}
+impl AtomicWaitImpl for AtomicU64 {
+    type AtomicInner = u64;
 
-#[inline]
-pub fn wake_all(ptr: *const AtomicU32) {
-    unsafe { WakeByAddressAll(ptr.cast()) };
+    fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
+        unsafe {
+            WaitOnAddress(
+                self as *const _ as *const _,
+                &value as *const _ as *const _,
+                size_of::<Self>(),
+                timeout
+                    .map(|x| x.as_millis().max(u64::MAX as u128) as u32)
+                    .unwrap_or(INFINITE),
+            );
+        }
+    }
+
+    fn notify_all(&self) {
+        unsafe { WakeByAddressAll(self as *const _ as *const _) };
+    }
+
+    fn notify_one(&self) {
+        unsafe { WakeByAddressSingle(self as *const _ as *const _) };
+    }
 }

@@ -1,36 +1,35 @@
-Cross platform atomic wait and wake (aka futex) functionality.
+# wait_on_address
 
-This crate only supports functionality that's available on all of
-Linux, FreeBSD, Windows, and macOS. That is:
+Cross platform atomic wait and wake (aka futex) functionality. This crate is a fork of [`atomic-wait`](https://github.com/m-ou-se/atomic-wait), and extends the original code with the following functionality:
 
-- Only `AtomicU32` is supported.
-  (Linux currently only supports 32-bit futexes.)
-- Only the "wait", "wake one", and "wake all" operations are supported.
-  (Linux supports more operations, but Windows and macOS don't.)
-- No timeouts.
-  (macOS doesn't have a stable/public API for timeouts.)
-- The wake operations don't return the number of threads woken up.
-  (Only Linux supports this.)
+- Support for `AtomicI32`, `AtomicI64`, and `AtomicU64`
+- Support for waiting with a timeout
+- Support for `wasm32` on nightly using `std::arch`
+- Polyfill for all other platforms
 
-Supported platforms:
-   Linux 2.6.22+,
-   FreeBSD 11+,
-   Windows 8+, Windows Server 2012+,
-   macOS 11+, iOS 14+, watchOS 7+.
+Natively-supported platforms:
+
+- Windows 8+, Windows Server 2012+
+- macOS 14.4+, iOS 17.4+, watchOS 10.4+
+- Linux 2.6.22+ (using fallback for 64-bit futexes)
+- wasm32
+- All other platforms with `std` support (using fallback)
 
 ## Usage
 
 ```rust
-use std::sync::atomic::AtomicU32;
-use atomic_wait::{wait, wake_one, wake_all};
+use std::{sync::atomic::AtomicU64, time::Duration};
+use wait_on_address::AtomicWait;
 
-let a = AtomicU32::new(0);
+let a = AtomicU64::new(0);
 
-wait(&a, 1); // If the value is 1, wait.
+a.wait(1); // If the value is 1, wait.
 
-wake_one(&a); // Wake one waiting thread.
+a.wait_timeout(2, Duration::from_millis(100));  // If the value is 2, wait at most 100 milliseconds
 
-wake_all(&a); // Wake all waiting threads.
+a.notify_one(); // Wake one waiting thread.
+
+a.notify_all(); // Wake all waiting threads.
 ```
 
 ## Implementation
@@ -41,5 +40,8 @@ On FreeBSD, this uses the `_umtx_op` syscall.
 
 On Windows, this uses the `WaitOnAddress` and `WakeByAddress` APIs.
 
-On macOS (and iOS and watchOS), this uses `libc++`, making use of the same
-(ABI-stable) functions behind C++20's `atomic_wait` and `atomic_notify` functions.
+On macOS (and iOS and watchOS), this uses the `os_sync_wait_on_address` and `os_sync_wake_by_address` APIs.
+
+On wasm32 with `nightly`, this uses `memory_atomic_wait32`, `memory_atomic_wait64`, and `memory_atomic_notify` instructions.
+
+All other platforms with `std` support fall back to a fixed-size hashmap of `Condvar`s, similar to `libstdc++`'s implementation for `std::atomic<T>`.
