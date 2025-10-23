@@ -16,8 +16,6 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-binstall
-      - name: Verify cargo-binstall
-        run: cargo binstall --version
       - name: Install cargo-nextest
         run: cargo binstall cargo-nextest --secure --no-confirm
       - name: Check formatting
