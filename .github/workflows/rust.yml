@@ -3,36 +3,29 @@ on:
   push: { branches: "main" }
   pull_request: { branches: "*" }
 jobs:
-  check-fmt:
-    name: Check formatting
-    runs-on: ubuntu-latest
+  build-and-test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-22.04-arm, windows-latest, windows-11-arm, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v1
-    - run: cargo fmt -- --check
-  linux:
-    name: Build and test on Linux
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v1
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
-  windows:
-    name: Build and test on Windows
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v1
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
-  macos:
-    name: Build and test on macOS
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v1
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v4
+      - name: Install toolchain components
+        run: rustup component add rustfmt clippy
+      - name: Install cargo-binstall
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-binstall
+      - name: Verify cargo-binstall
+        run: cargo binstall --version
+      - name: Install cargo-nextest
+        run: cargo binstall cargo-nextest --secure --no-confirm
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Run clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Build
+        run: cargo build --verbose
+      - name: Run tests
+        run: cargo nextest run --verbose
+
