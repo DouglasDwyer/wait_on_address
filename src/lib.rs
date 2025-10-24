@@ -47,7 +47,7 @@ mod platform;
 #[allow(unused)]
 mod condvar_table;
 
-/// An type that supports atomic waits.
+/// A type that supports atomic waits.
 pub trait AtomicWait: private::AtomicWaitImpl {
     /// If the value is `value`, wait until woken up.
     ///
