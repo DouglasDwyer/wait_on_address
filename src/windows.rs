@@ -18,7 +18,13 @@ impl AtomicWaitImpl for AtomicU32 {
                 &value as *const _ as *const _,
                 size_of::<Self>(),
                 timeout
-                    .map(|x| x.as_millis().max(u64::MAX as u128) as u32)
+                    .map(|x| {
+                        // Clamp to a finite u32 millisecond timeout. INFINITE (0xFFFFFFFF)
+                        // means no timeout, so avoid ever passing that when a timeout is set.
+                        let ms = x.as_millis();
+                        let capped = ms.min(u32::MAX as u128 - 1);
+                        capped as u32
+                    })
                     .unwrap_or(INFINITE),
             );
         }
@@ -43,7 +49,7 @@ impl AtomicWaitImpl for AtomicU64 {
                 &value as *const _ as *const _,
                 size_of::<Self>(),
                 timeout
-                    .map(|x| x.as_millis().max(u64::MAX as u128) as u32)
+                    .map(|x| x.as_millis().min(u32::MAX as u128 - 1) as u32)
                     .unwrap_or(INFINITE),
             );
         }
