@@ -1,10 +1,10 @@
 [package]
-name = "wait_on_address"
-description = "Cross-platform atomic wait and wake (aka futex) functionality."
-repository = "https://github.com/DouglasDwyer/wait_on_address"
-keywords = ["atomic", "futex"]
+name = "ecmascript_futex"
+description = "Cross-platform atomic wait and wake (aka futex) functionality using the ECMAScript Atomics memory model."
+repository = "https://github.com/trynova/ecmascript_futex"
+keywords = ["atomic", "futex", "ecmascript"]
 version = "0.1.1"
-edition = "2024"
+edition = "2021"
 license = "BSD-2-Clause"
 categories = ["concurrency", "os", "no-std"]
 

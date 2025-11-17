@@ -22,7 +22,7 @@ Natively-supported platforms:
 
 ```rust
 use std::{sync::atomic::AtomicU64, time::Duration};
-use wait_on_address::AtomicWait;
+use ecmascript_futex::AtomicWait;
 
 let a = AtomicU64::new(0);
 

@@ -1,9 +1,9 @@
+use ecmascript_futex::AtomicWait;
 use std::{
     sync::atomic::{AtomicU32, Ordering::Relaxed},
     thread::sleep,
     time::{Duration, Instant},
 };
-use wait_on_address::AtomicWait;
 
 #[test]
 fn wake_nothing() {
