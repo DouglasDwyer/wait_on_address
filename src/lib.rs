@@ -52,14 +52,24 @@ mod platform;
 )))]
 mod condvar_table;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FutexError {
+    /// Timeout fired.
+    Timeout,
+    /// The waiter was woken up spuriously.
+    Spurious,
+    /// An unknown error occurred.
+    Unknown,
+}
+
 /// A type that supports atomic waits.
 pub trait ECMAScriptAtomicWait: private::ECMAScriptAtomicWaitImpl {
     /// If the value is `value`, wait until woken up.
     ///
     /// This function might also return spuriously,
     /// without a corresponding wake operation.
-    fn wait(&self, value: Self::ECMAScriptAtomicInner) {
-        private::ECMAScriptAtomicWaitImpl::wait_timeout(self, value, None);
+    fn wait(&self, value: Self::ECMAScriptAtomicInner) -> Result<(), FutexError> {
+        private::ECMAScriptAtomicWaitImpl::wait_timeout(self, value, None)
     }
 
     /// If the value is `value`, wait until timeout elapses
@@ -67,13 +77,17 @@ pub trait ECMAScriptAtomicWait: private::ECMAScriptAtomicWaitImpl {
     ///
     /// This function might also return spuriously,
     /// without a corresponding wake operation.
-    fn wait_timeout(&self, value: Self::ECMAScriptAtomicInner, timeout: Duration) {
-        private::ECMAScriptAtomicWaitImpl::wait_timeout(self, value, Some(timeout));
+    fn wait_timeout(
+        &self,
+        value: Self::ECMAScriptAtomicInner,
+        timeout: Duration,
+    ) -> Result<(), FutexError> {
+        private::ECMAScriptAtomicWaitImpl::wait_timeout(self, value, Some(timeout))
     }
 
     /// Wake one thread that is waiting on this atomic.
-    fn notify_one(&self) {
-        private::ECMAScriptAtomicWaitImpl::notify_one(self);
+    fn notify_many(&self, count: usize) {
+        private::ECMAScriptAtomicWaitImpl::notify_many(self, count);
     }
 
     /// Wake all threads that are waiting on this atomic.
@@ -89,6 +103,8 @@ impl ECMAScriptAtomicWait for Racy<'_, u64> {}
 mod private {
     use core::time::Duration;
 
+    use crate::FutexError;
+
     /// A trait that cannot be implemented by other crates.
     pub trait ECMAScriptAtomicWaitImpl {
         /// The underlying integer type for the atomic.
@@ -98,12 +114,16 @@ mod private {
         fn notify_all(&self);
 
         /// Wake one thread that is waiting on this atomic.
-        fn notify_one(&self);
+        fn notify_many(&self, count: usize);
 
         /// If the value is `value`, wait until woken up.
         ///
         /// This function might also return spuriously,
         /// without a corresponding wake operation.
-        fn wait_timeout(&self, value: Self::ECMAScriptAtomicInner, timeout: Option<Duration>);
+        fn wait_timeout(
+            &self,
+            value: Self::ECMAScriptAtomicInner,
+            timeout: Option<Duration>,
+        ) -> Result<(), FutexError>;
     }
 }

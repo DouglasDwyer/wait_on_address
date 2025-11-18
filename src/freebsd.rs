@@ -7,7 +7,11 @@ use crate::private::AtomicWaitImpl;
 impl AtomicWaitImpl for Racy<'_, u32> {
     type AtomicInner = u32;
 
-    fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
+    fn wait_timeout(
+        &self,
+        value: Self::AtomicInner,
+        timeout: Option<Duration>,
+    ) -> Result<(), FutexError> {
         unsafe {
             if let Some(time) = timeout {
                 let wait_timespec = libc::_umtx_time {
@@ -50,7 +54,7 @@ impl AtomicWaitImpl for Racy<'_, u32> {
         };
     }
 
-    fn notify_one(&self) {
+    fn notify_many(&self, count: usize) {
         unsafe {
             libc::_umtx_op(
                 self.addr(),
@@ -66,7 +70,11 @@ impl AtomicWaitImpl for Racy<'_, u32> {
 impl AtomicWaitImpl for Racy<'_, u64> {
     type AtomicInner = u64;
 
-    fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
+    fn wait_timeout(
+        &self,
+        value: Self::AtomicInner,
+        timeout: Option<Duration>,
+    ) -> Result<(), FutexError> {
         unsafe {
             if let Some(time) = timeout {
                 let wait_timespec = libc::_umtx_time {
@@ -109,7 +117,7 @@ impl AtomicWaitImpl for Racy<'_, u64> {
         };
     }
 
-    fn notify_one(&self) {
+    fn notify_many(&self, count: usize) {
         unsafe {
             libc::_umtx_op(
                 self.addr(),

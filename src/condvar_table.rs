@@ -4,6 +4,8 @@ use std::{
     time::Duration,
 };
 
+use crate::FutexError;
+
 /// The number of OS synchronization primitives to use.
 const TABLE_SIZE: usize = 256;
 
@@ -12,9 +14,14 @@ static TABLE: [TableEntry; TABLE_SIZE] = [TableEntry::DEFAULT; TABLE_SIZE];
 
 /// Puts the current thread to sleep if `condition` evaluates to `true`.
 /// The thread will be woken after `timeout` if it is provided.
-pub fn wait(ptr: *const (), condition: impl FnOnce() -> bool, timeout: Option<Duration>) {
+pub fn wait(
+    ptr: *const (),
+    condition: impl Fn() -> bool,
+    timeout: Option<Duration>,
+) -> Result<(), FutexError> {
     let entry = &TABLE[entry_for_ptr(ptr) as usize];
     let mut guard = spin_lock(&entry.mutex);
+    let mut timedout = false;
     if condition() {
         if guard.waiting_count == 0 {
             guard.address = ptr;
@@ -25,41 +32,55 @@ pub fn wait(ptr: *const (), condition: impl FnOnce() -> bool, timeout: Option<Du
         guard.waiting_count += 1;
 
         guard = if let Some(time) = timeout {
-            entry
+            let (guard, result) = entry
                 .condvar
                 .wait_timeout(guard, time)
-                .expect("Failed to lock mutex")
-                .0
+                .expect("Failed to lock mutex");
+            timedout = result.timed_out();
+            guard
         } else {
             entry.condvar.wait(guard).expect("Failed to lock mutex")
         };
 
         guard.waiting_count -= 1;
+    } else {
+        return Ok(());
+    }
+    if !timedout && !condition() {
+        Ok(())
+    } else if timedout {
+        Err(FutexError::Timeout)
+    } else {
+        Err(FutexError::Spurious)
     }
 }
 
 /// Wakes all threads waiting on `ptr`.
 pub fn notify_all(ptr: *const ()) {
-    if !ptr.is_null() {
-        let entry = &TABLE[entry_for_ptr(ptr) as usize];
-        let metadata = *spin_lock(&entry.mutex);
-        if 0 < metadata.waiting_count {
-            entry.condvar.notify_all();
-        }
+    if ptr.is_null() {
+        return;
+    }
+    let entry = &TABLE[entry_for_ptr(ptr) as usize];
+    let metadata = *spin_lock(&entry.mutex);
+    if 0 < metadata.waiting_count {
+        entry.condvar.notify_all();
     }
 }
 
 /// Wakes at least one thread waiting on `ptr`.
-pub fn notify_one(ptr: *const ()) {
-    if !ptr.is_null() {
-        let entry = &TABLE[entry_for_ptr(ptr) as usize];
-        let metadata = *spin_lock(&entry.mutex);
-        if 0 < metadata.waiting_count {
-            if metadata.address.is_null() {
-                entry.condvar.notify_all();
-            } else if metadata.address == ptr {
-                entry.condvar.notify_one();
-            }
+pub fn notify_many(ptr: *const (), count: usize) {
+    if ptr.is_null() {
+        return;
+    }
+    let entry = &TABLE[entry_for_ptr(ptr) as usize];
+    let metadata = *spin_lock(&entry.mutex);
+    if metadata.waiting_count == 0 {
+        return;
+    } else if metadata.waiting_count < count || metadata.address.is_null() {
+        entry.condvar.notify_all();
+    } else {
+        for _ in 0..count {
+            entry.condvar.notify_one();
         }
     }
 }

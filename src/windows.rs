@@ -10,7 +10,11 @@ use crate::private::AtomicWaitImpl;
 impl AtomicWaitImpl for Racy<'_, u32> {
     type AtomicInner = u32;
 
-    fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
+    fn wait_timeout(
+        &self,
+        value: Self::AtomicInner,
+        timeout: Option<Duration>,
+    ) -> Result<(), FutexError> {
         unsafe {
             WaitOnAddress(
                 self.addr(),
@@ -33,7 +37,7 @@ impl AtomicWaitImpl for Racy<'_, u32> {
         unsafe { WakeByAddressAll(self.addr()) };
     }
 
-    fn notify_one(&self) {
+    fn notify_many(&self, count: usize) {
         unsafe { WakeByAddressSingle(self.addr()) };
     }
 }
@@ -41,7 +45,11 @@ impl AtomicWaitImpl for Racy<'_, u32> {
 impl AtomicWaitImpl for Racy<'_, u64> {
     type AtomicInner = u64;
 
-    fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
+    fn wait_timeout(
+        &self,
+        value: Self::AtomicInner,
+        timeout: Option<Duration>,
+    ) -> Result<(), FutexError> {
         unsafe {
             WaitOnAddress(
                 self.addr(),
@@ -58,7 +66,7 @@ impl AtomicWaitImpl for Racy<'_, u64> {
         unsafe { WakeByAddressAll(self.addr()) };
     }
 
-    fn notify_one(&self) {
+    fn notify_many(&self, count: usize) {
         unsafe { WakeByAddressSingle(self.addr()) };
     }
 }

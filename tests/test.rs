@@ -9,7 +9,7 @@ use std::{
 fn wake_nothing() {
     let a = RacyBox::new(0u32).unwrap();
     let a = a.as_slice().get(0).unwrap();
-    a.notify_one();
+    a.notify_many(1);
     a.notify_all();
 }
 
@@ -18,7 +18,7 @@ fn wait_unexpected() {
     let t = Instant::now();
     let a = RacyBox::new(0u32).unwrap();
     let a = a.as_slice().get(0).unwrap();
-    a.wait(1);
+    assert_eq!(a.wait(1), Ok(()));
     assert!(t.elapsed().as_millis() < 100);
 }
 
@@ -31,7 +31,7 @@ fn wait_wake() {
         s.spawn(|| {
             sleep(Duration::from_millis(100));
             a.store(1, Ordering::Unordered);
-            a.notify_one();
+            a.notify_many(1);
         });
         while a.load(Ordering::Unordered) == 0 {
             a.wait(0);
@@ -89,14 +89,14 @@ fn stress_ping_pong_many_iters() {
                     state.wait_timeout(0, Duration::from_millis(10));
                 }
                 state.store(0, Ordering::Unordered);
-                state.notify_one();
+                state.notify_many(1);
             }
         });
 
         // Producer: set to 1, notify consumer, then wait until it resets to 0.
         for _ in 0..iters {
             state.store(1, Ordering::Unordered);
-            state.notify_one();
+            state.notify_many(1);
             while state.load(Ordering::Unordered) != 0 {
                 state.wait_timeout(1, Duration::from_millis(10));
             }

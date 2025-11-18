@@ -7,39 +7,47 @@ use crate::{condvar_table, private::AtomicWaitImpl};
 impl AtomicWaitImpl for Racy<'_, u32> {
     type AtomicInner = u32;
 
-    fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
+    fn wait_timeout(
+        &self,
+        value: Self::AtomicInner,
+        timeout: Option<Duration>,
+    ) -> Result<(), FutexError> {
         condvar_table::wait(
             self.addr(),
             || self.load(Ordering::SeqCst) == value,
             timeout,
-        );
+        )
     }
 
     fn notify_all(&self) {
         condvar_table::notify_all(self.addr());
     }
 
-    fn notify_one(&self) {
-        condvar_table::notify_one(self.addr());
+    fn notify_many(&self, count: usize) {
+        condvar_table::notify_many(self.addr(), count);
     }
 }
 
 impl AtomicWaitImpl for Racy<'_, u64> {
     type AtomicInner = u64;
 
-    fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
+    fn wait_timeout(
+        &self,
+        value: Self::AtomicInner,
+        timeout: Option<Duration>,
+    ) -> Result<(), FutexError> {
         condvar_table::wait(
             self.addr(),
             || self.load(Ordering::SeqCst) == value,
             timeout,
-        );
+        )
     }
 
     fn notify_all(&self) {
         condvar_table::notify_all(self.addr());
     }
 
-    fn notify_one(&self) {
-        condvar_table::notify_one(self.addr());
+    fn notify_many(&self, count: usize) {
+        condvar_table::notify_many(self.addr(), count);
     }
 }

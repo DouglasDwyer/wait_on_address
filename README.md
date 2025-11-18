@@ -37,7 +37,7 @@ a.wait(1); // If the value is 1, wait.
 
 a.wait_timeout(2, Duration::from_millis(100));  // If the value is 2, wait at most 100 milliseconds
 
-a.notify_one(); // Wake one waiting thread.
+a.notify_many(1); // Wake one waiting thread.
 
 a.notify_all(); // Wake all waiting threads.
 ```

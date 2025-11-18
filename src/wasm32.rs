@@ -18,11 +18,15 @@ fn can_block() -> bool {
 impl AtomicWaitImpl for Racy<'_, u32> {
     type AtomicInner = u32;
 
-    fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
+    fn wait_timeout(
+        &self,
+        value: Self::AtomicInner,
+        timeout: Option<Duration>,
+    ) -> Result<(), FutexError> {
         if can_block() {
             crate::condvar_table::wait(
                 self.addr(),
-                || self.load(std::sync::atomic::Ordering::Acquire) == value,
+                || self.load(Ordering::SeqCst) == value,
                 timeout,
             );
         } else {
@@ -34,8 +38,8 @@ impl AtomicWaitImpl for Racy<'_, u32> {
         crate::condvar_table::notify_all(self.addr());
     }
 
-    fn notify_one(&self) {
-        crate::condvar_table::notify_one(self.addr());
+    fn notify_many(&self, count: usize) {
+        crate::condvar_table::notify_many(self.addr(), count);
     }
 }
 
@@ -43,11 +47,15 @@ impl AtomicWaitImpl for Racy<'_, u32> {
 impl AtomicWaitImpl for Racy<'_, u64> {
     type AtomicInner = u64;
 
-    fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
+    fn wait_timeout(
+        &self,
+        value: Self::AtomicInner,
+        timeout: Option<Duration>,
+    ) -> Result<(), FutexError> {
         if can_block() {
             crate::condvar_table::wait(
                 self.addr(),
-                || self.load(std::sync::atomic::Ordering::Acquire) == value,
+                || self.load(Ordering::SeqCst) == value,
                 timeout,
             );
         } else {
@@ -59,8 +67,8 @@ impl AtomicWaitImpl for Racy<'_, u64> {
         crate::condvar_table::notify_all(self.addr());
     }
 
-    fn notify_one(&self) {
-        crate::condvar_table::notify_one(self.addr());
+    fn notify_many(&self, count: usize) {
+        crate::condvar_table::notify_many(self.addr(), count);
     }
 }
 
@@ -68,7 +76,11 @@ impl AtomicWaitImpl for Racy<'_, u64> {
 impl AtomicWaitImpl for Racy<'_, u32> {
     type AtomicInner = u32;
 
-    fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
+    fn wait_timeout(
+        &self,
+        value: Self::AtomicInner,
+        timeout: Option<Duration>,
+    ) -> Result<(), FutexError> {
         unsafe {
             if can_block() {
                 std::arch::wasm32::memory_atomic_wait32(
@@ -90,7 +102,7 @@ impl AtomicWaitImpl for Racy<'_, u32> {
         };
     }
 
-    fn notify_one(&self) {
+    fn notify_many(&self, count: usize) {
         unsafe {
             std::arch::wasm32::memory_atomic_notify(self.addr(), 1);
         };
@@ -101,7 +113,11 @@ impl AtomicWaitImpl for Racy<'_, u32> {
 impl AtomicWaitImpl for Racy<'_, u64> {
     type AtomicInner = u64;
 
-    fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
+    fn wait_timeout(
+        &self,
+        value: Self::AtomicInner,
+        timeout: Option<Duration>,
+    ) -> Result<(), FutexError> {
         unsafe {
             if can_block() {
                 std::arch::wasm32::memory_atomic_wait64(
@@ -123,7 +139,7 @@ impl AtomicWaitImpl for Racy<'_, u64> {
         };
     }
 
-    fn notify_one(&self) {
+    fn notify_many(&self, count: usize) {
         unsafe {
             std::arch::wasm32::memory_atomic_notify(self.addr(), 1);
         };
