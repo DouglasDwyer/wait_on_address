@@ -4,9 +4,12 @@ description = "Cross-platform atomic wait and wake (aka futex) functionality usi
 repository = "https://github.com/trynova/ecmascript_futex"
 keywords = ["atomic", "futex", "ecmascript"]
 version = "0.1.1"
-edition = "2021"
+edition = "2024"
 license = "BSD-2-Clause"
 categories = ["concurrency", "os", "no-std"]
+
+[dependencies]
+ecmascript_atomics = { version = "0.2.2", path = "../ecmascript_atomics/ecmascript_atomics" }
 
 [target.'cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd", target_os = "macos"))'.dependencies]
 libc = { version = "0.2", default-features = false }

@@ -4,10 +4,9 @@
     feature(stdarch_wasm_atomic_wait)
 )]
 
-use std::{
-    sync::atomic::{AtomicI32, AtomicI64, AtomicU32, AtomicU64},
-    time::Duration,
-};
+use core::time::Duration;
+
+use ecmascript_atomics::Racy;
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
 #[path = "linux.rs"]
@@ -44,17 +43,23 @@ mod platform;
 
 /// A table of OS synchronization primitives for manually
 /// implementing futex functionality on unsupported platforms.
-#[allow(unused)]
+#[cfg(not(any(
+    target_os = "freebsd",
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "watchos",
+    windows
+)))]
 mod condvar_table;
 
 /// A type that supports atomic waits.
-pub trait AtomicWait: private::AtomicWaitImpl {
+pub trait ECMAScriptAtomicWait: private::ECMAScriptAtomicWaitImpl {
     /// If the value is `value`, wait until woken up.
     ///
     /// This function might also return spuriously,
     /// without a corresponding wake operation.
-    fn wait(&self, value: Self::AtomicInner) {
-        private::AtomicWaitImpl::wait_timeout(self, value, None);
+    fn wait(&self, value: Self::ECMAScriptAtomicInner) {
+        private::ECMAScriptAtomicWaitImpl::wait_timeout(self, value, None);
     }
 
     /// If the value is `value`, wait until timeout elapses
@@ -62,94 +67,32 @@ pub trait AtomicWait: private::AtomicWaitImpl {
     ///
     /// This function might also return spuriously,
     /// without a corresponding wake operation.
-    fn wait_timeout(&self, value: Self::AtomicInner, timeout: Duration) {
-        private::AtomicWaitImpl::wait_timeout(self, value, Some(timeout));
+    fn wait_timeout(&self, value: Self::ECMAScriptAtomicInner, timeout: Duration) {
+        private::ECMAScriptAtomicWaitImpl::wait_timeout(self, value, Some(timeout));
     }
 
     /// Wake one thread that is waiting on this atomic.
     fn notify_one(&self) {
-        private::AtomicWaitImpl::notify_one(self);
+        private::ECMAScriptAtomicWaitImpl::notify_one(self);
     }
 
     /// Wake all threads that are waiting on this atomic.
     fn notify_all(&self) {
-        private::AtomicWaitImpl::notify_all(self);
+        private::ECMAScriptAtomicWaitImpl::notify_all(self);
     }
 }
 
-impl AtomicWait for AtomicU32 {}
-impl AtomicWait for AtomicU64 {}
-impl AtomicWait for AtomicI32 {}
-impl AtomicWait for AtomicI64 {}
-
-impl private::AtomicWaitImpl for AtomicI32 {
-    type AtomicInner = i32;
-
-    fn notify_all(&self) {
-        unsafe {
-            private::AtomicWaitImpl::notify_all(std::mem::transmute::<&AtomicI32, &AtomicU32>(
-                self,
-            ));
-        }
-    }
-
-    fn notify_one(&self) {
-        unsafe {
-            private::AtomicWaitImpl::notify_one(std::mem::transmute::<&AtomicI32, &AtomicU32>(
-                self,
-            ));
-        }
-    }
-
-    fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
-        unsafe {
-            private::AtomicWaitImpl::wait_timeout(
-                std::mem::transmute::<&AtomicI32, &AtomicU32>(self),
-                value as u32,
-                timeout,
-            );
-        }
-    }
-}
-
-impl private::AtomicWaitImpl for AtomicI64 {
-    type AtomicInner = i64;
-
-    fn notify_all(&self) {
-        unsafe {
-            private::AtomicWaitImpl::notify_all(std::mem::transmute::<&AtomicI64, &AtomicU64>(
-                self,
-            ));
-        }
-    }
-
-    fn notify_one(&self) {
-        unsafe {
-            private::AtomicWaitImpl::notify_one(std::mem::transmute::<&AtomicI64, &AtomicU64>(
-                self,
-            ));
-        }
-    }
-
-    fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
-        unsafe {
-            private::AtomicWaitImpl::wait_timeout(
-                std::mem::transmute::<&AtomicI64, &AtomicU64>(self),
-                value as u64,
-                timeout,
-            );
-        }
-    }
-}
+impl ECMAScriptAtomicWait for Racy<'_, u32> {}
+impl ECMAScriptAtomicWait for Racy<'_, u64> {}
 
 /// Private implementation details.
 mod private {
-    use std::time::Duration;
+    use core::time::Duration;
 
     /// A trait that cannot be implemented by other crates.
-    pub trait AtomicWaitImpl {
+    pub trait ECMAScriptAtomicWaitImpl {
         /// The underlying integer type for the atomic.
-        type AtomicInner;
+        type ECMAScriptAtomicInner;
 
         /// Wake all threads that are waiting on this atomic.
         fn notify_all(&self);
@@ -161,6 +104,6 @@ mod private {
         ///
         /// This function might also return spuriously,
         /// without a corresponding wake operation.
-        fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>);
+        fn wait_timeout(&self, value: Self::ECMAScriptAtomicInner, timeout: Option<Duration>);
     }
 }

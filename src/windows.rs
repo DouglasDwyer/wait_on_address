@@ -1,20 +1,19 @@
-use std::{
-    sync::atomic::{AtomicU32, AtomicU64},
-    time::Duration,
-};
+use core::time::Duration;
+
+use ecmascript_atomics::{Ordering, Racy};
 use windows_sys::Win32::System::Threading::{
     INFINITE, WaitOnAddress, WakeByAddressAll, WakeByAddressSingle,
 };
 
 use crate::private::AtomicWaitImpl;
 
-impl AtomicWaitImpl for AtomicU32 {
+impl AtomicWaitImpl for Racy<'_, u32> {
     type AtomicInner = u32;
 
     fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
         unsafe {
             WaitOnAddress(
-                self as *const _ as *const _,
+                self.addr(),
                 &value as *const _ as *const _,
                 size_of::<Self>(),
                 timeout
@@ -31,21 +30,21 @@ impl AtomicWaitImpl for AtomicU32 {
     }
 
     fn notify_all(&self) {
-        unsafe { WakeByAddressAll(self as *const _ as *const _) };
+        unsafe { WakeByAddressAll(self.addr()) };
     }
 
     fn notify_one(&self) {
-        unsafe { WakeByAddressSingle(self as *const _ as *const _) };
+        unsafe { WakeByAddressSingle(self.addr()) };
     }
 }
 
-impl AtomicWaitImpl for AtomicU64 {
+impl AtomicWaitImpl for Racy<'_, u64> {
     type AtomicInner = u64;
 
     fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
         unsafe {
             WaitOnAddress(
-                self as *const _ as *const _,
+                self.addr(),
                 &value as *const _ as *const _,
                 size_of::<Self>(),
                 timeout
@@ -56,10 +55,10 @@ impl AtomicWaitImpl for AtomicU64 {
     }
 
     fn notify_all(&self) {
-        unsafe { WakeByAddressAll(self as *const _ as *const _) };
+        unsafe { WakeByAddressAll(self.addr()) };
     }
 
     fn notify_one(&self) {
-        unsafe { WakeByAddressSingle(self as *const _ as *const _) };
+        unsafe { WakeByAddressSingle(self.addr()) };
     }
 }

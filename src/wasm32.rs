@@ -1,8 +1,6 @@
-use std::{
-    hint::spin_loop,
-    sync::atomic::{AtomicU32, AtomicU64},
-    time::Duration,
-};
+use std::{hint::spin_loop, time::Duration};
+
+use ecmascript_atomics::{Ordering, Racy};
 
 use crate::private::AtomicWaitImpl;
 
@@ -17,13 +15,13 @@ fn can_block() -> bool {
 }
 
 #[cfg(not(nightly))]
-impl AtomicWaitImpl for AtomicU32 {
+impl AtomicWaitImpl for Racy<'_, u32> {
     type AtomicInner = u32;
 
     fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
         if can_block() {
             crate::condvar_table::wait(
-                self as *const _ as *const _,
+                self.addr(),
                 || self.load(std::sync::atomic::Ordering::Acquire) == value,
                 timeout,
             );
@@ -33,22 +31,22 @@ impl AtomicWaitImpl for AtomicU32 {
     }
 
     fn notify_all(&self) {
-        crate::condvar_table::notify_all(self as *const _ as *const _);
+        crate::condvar_table::notify_all(self.addr());
     }
 
     fn notify_one(&self) {
-        crate::condvar_table::notify_one(self as *const _ as *const _);
+        crate::condvar_table::notify_one(self.addr());
     }
 }
 
 #[cfg(not(nightly))]
-impl AtomicWaitImpl for AtomicU64 {
+impl AtomicWaitImpl for Racy<'_, u64> {
     type AtomicInner = u64;
 
     fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
         if can_block() {
             crate::condvar_table::wait(
-                self as *const _ as *const _,
+                self.addr(),
                 || self.load(std::sync::atomic::Ordering::Acquire) == value,
                 timeout,
             );
@@ -58,23 +56,23 @@ impl AtomicWaitImpl for AtomicU64 {
     }
 
     fn notify_all(&self) {
-        crate::condvar_table::notify_all(self as *const _ as *const _);
+        crate::condvar_table::notify_all(self.addr());
     }
 
     fn notify_one(&self) {
-        crate::condvar_table::notify_one(self as *const _ as *const _);
+        crate::condvar_table::notify_one(self.addr());
     }
 }
 
 #[cfg(nightly)]
-impl AtomicWaitImpl for AtomicU32 {
+impl AtomicWaitImpl for Racy<'_, u32> {
     type AtomicInner = u32;
 
     fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
         unsafe {
             if can_block() {
                 std::arch::wasm32::memory_atomic_wait32(
-                    self as *const _ as *mut _,
+                    self.addr(),
                     value as i32,
                     timeout
                         .map(|x| x.as_nanos().min(i64::MAX as u128) as i64)
@@ -88,26 +86,26 @@ impl AtomicWaitImpl for AtomicU32 {
 
     fn notify_all(&self) {
         unsafe {
-            std::arch::wasm32::memory_atomic_notify(self as *const _ as *mut _, u32::MAX);
+            std::arch::wasm32::memory_atomic_notify(self.addr(), u32::MAX);
         };
     }
 
     fn notify_one(&self) {
         unsafe {
-            std::arch::wasm32::memory_atomic_notify(self as *const _ as *mut _, 1);
+            std::arch::wasm32::memory_atomic_notify(self.addr(), 1);
         };
     }
 }
 
 #[cfg(nightly)]
-impl AtomicWaitImpl for AtomicU64 {
+impl AtomicWaitImpl for Racy<'_, u64> {
     type AtomicInner = u64;
 
     fn wait_timeout(&self, value: Self::AtomicInner, timeout: Option<Duration>) {
         unsafe {
             if can_block() {
                 std::arch::wasm32::memory_atomic_wait64(
-                    self as *const _ as *mut _,
+                    self.addr(),
                     value as i64,
                     timeout
                         .map(|x| x.as_nanos().min(i64::MAX as u128) as i64)
@@ -121,13 +119,13 @@ impl AtomicWaitImpl for AtomicU64 {
 
     fn notify_all(&self) {
         unsafe {
-            std::arch::wasm32::memory_atomic_notify(self as *const _ as *mut _, u32::MAX);
+            std::arch::wasm32::memory_atomic_notify(self.addr(), u32::MAX);
         };
     }
 
     fn notify_one(&self) {
         unsafe {
-            std::arch::wasm32::memory_atomic_notify(self as *const _ as *mut _, 1);
+            std::arch::wasm32::memory_atomic_notify(self.addr(), 1);
         };
     }
 }
