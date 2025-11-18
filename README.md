@@ -27,11 +27,11 @@ Natively-supported platforms:
 
 ```rust
 use core::time::Duration;
-use ecmascript_atomics::{Racy, RacyMemory};
+use ecmascript_atomics::{Racy, RacyBox};
 use ecmascript_futex::ECMAScriptAtomicWait;
 
-let a_owned = RacyMemory::new(0u64);
-let a = a_owned.as_slice().get(0).unwrap();
+let a = RacyBox::new(0u64).unwrap();
+let a = a.as_slice().get(0).unwrap();
 
 a.wait(1); // If the value is 1, wait.
 
@@ -40,9 +40,6 @@ a.wait_timeout(2, Duration::from_millis(100));  // If the value is 2, wait at mo
 a.notify_one(); // Wake one waiting thread.
 
 a.notify_all(); // Wake all waiting threads.
-
-// SAFETY: a_owned is the only referrer 
-unsafe { a_owned.exit_and_drop() };
 ```
 
 ## Implementation
