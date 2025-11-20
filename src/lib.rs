@@ -54,10 +54,10 @@ mod condvar_table;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FutexError {
+    /// The value was not equal and no sleep was performed.
+    NotEqual,
     /// Timeout fired.
     Timeout,
-    /// The waiter was woken up spuriously.
-    Spurious,
     /// An unknown error occurred.
     Unknown,
 }
@@ -86,13 +86,13 @@ pub trait ECMAScriptAtomicWait: private::ECMAScriptAtomicWaitImpl {
     }
 
     /// Wake one thread that is waiting on this atomic.
-    fn notify_many(&self, count: usize) {
-        private::ECMAScriptAtomicWaitImpl::notify_many(self, count);
+    fn notify_many(&self, count: usize) -> usize {
+        private::ECMAScriptAtomicWaitImpl::notify_many(self, count)
     }
 
     /// Wake all threads that are waiting on this atomic.
-    fn notify_all(&self) {
-        private::ECMAScriptAtomicWaitImpl::notify_all(self);
+    fn notify_all(&self) -> usize {
+        private::ECMAScriptAtomicWaitImpl::notify_all(self)
     }
 }
 
@@ -111,10 +111,10 @@ mod private {
         type ECMAScriptAtomicInner;
 
         /// Wake all threads that are waiting on this atomic.
-        fn notify_all(&self);
+        fn notify_all(&self) -> usize;
 
         /// Wake one thread that is waiting on this atomic.
-        fn notify_many(&self, count: usize);
+        fn notify_many(&self, count: usize) -> usize;
 
         /// If the value is `value`, wait until woken up.
         ///

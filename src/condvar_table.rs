@@ -43,45 +43,47 @@ pub fn wait(
         };
 
         guard.waiting_count -= 1;
+
+        if timedout {
+            Err(FutexError::Timeout)
+        } else {
+            Ok(())
+        }
     } else {
-        return Ok(());
-    }
-    if !timedout && !condition() {
-        Ok(())
-    } else if timedout {
-        Err(FutexError::Timeout)
-    } else {
-        Err(FutexError::Spurious)
+        Err(FutexError::NotEqual)
     }
 }
 
 /// Wakes all threads waiting on `ptr`.
-pub fn notify_all(ptr: *const ()) {
+pub fn notify_all(ptr: *const ()) -> usize {
     if ptr.is_null() {
-        return;
+        return 0;
     }
     let entry = &TABLE[entry_for_ptr(ptr) as usize];
     let metadata = *spin_lock(&entry.mutex);
     if 0 < metadata.waiting_count {
         entry.condvar.notify_all();
     }
+    metadata.waiting_count
 }
 
 /// Wakes at least one thread waiting on `ptr`.
-pub fn notify_many(ptr: *const (), count: usize) {
+pub fn notify_many(ptr: *const (), count: usize) -> usize {
     if ptr.is_null() {
-        return;
+        return 0;
     }
     let entry = &TABLE[entry_for_ptr(ptr) as usize];
     let metadata = *spin_lock(&entry.mutex);
     if metadata.waiting_count == 0 {
-        return;
+        return 0;
     } else if metadata.waiting_count < count || metadata.address.is_null() {
         entry.condvar.notify_all();
+        metadata.waiting_count
     } else {
         for _ in 0..count {
             entry.condvar.notify_one();
         }
+        count
     }
 }
 
@@ -100,9 +102,9 @@ fn spin_lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 /// Gets the entry index to use for the given address.
 fn entry_for_ptr(ptr: *const ()) -> u8 {
     let x_64 = ptr as u64;
-    let x_32 = (x_64 >> 32) as u32 | x_64 as u32;
-    let x_16 = (x_32 >> 16) as u16 | x_32 as u16;
-    (x_16 >> 8) as u8 | x_16 as u8
+    let x_32 = (x_64 >> 32) as u32 ^ x_64 as u32;
+    let x_16 = (x_32 >> 16) as u16 ^ x_32 as u16;
+    (x_16 >> 8) as u8 ^ (x_16 >> 2) as u8
 }
 
 /// Holds metadata that gets written while locking.

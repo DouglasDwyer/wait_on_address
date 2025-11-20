@@ -33,11 +33,11 @@ impl AtomicWaitImpl for Racy<'_, u32> {
         }
     }
 
-    fn notify_all(&self) {
+    fn notify_all(&self) -> usize {
         unsafe { WakeByAddressAll(self.addr()) };
     }
 
-    fn notify_many(&self, count: usize) {
+    fn notify_many(&self, count: usize) -> usize {
         unsafe { WakeByAddressSingle(self.addr()) };
     }
 }
@@ -62,11 +62,11 @@ impl AtomicWaitImpl for Racy<'_, u64> {
         }
     }
 
-    fn notify_all(&self) {
+    fn notify_all(&self) -> usize {
         unsafe { WakeByAddressAll(self.addr()) };
     }
 
-    fn notify_many(&self, count: usize) {
+    fn notify_many(&self, count: usize) -> usize {
         unsafe { WakeByAddressSingle(self.addr()) };
     }
 }

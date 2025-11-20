@@ -32,40 +32,43 @@ impl ECMAScriptAtomicWaitImpl for Racy<'_, u32> {
                 Ok(())
             } else {
                 let errno = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
-                if errno == libc::ETIMEDOUT {
-                    println!("Timeout");
+                if errno == libc::EAGAIN {
+                    Err(FutexError::NotEqual)
+                } else if errno == libc::ETIMEDOUT {
                     Err(FutexError::Timeout)
-                } else if errno == libc::EAGAIN {
-                    println!("Spurious?");
-                    Err(FutexError::Spurious)
+                } else if errno == libc::EINTR {
+                    // We consider spurious interrupts to still be valid
+                    // wakeups.
+                    Ok(())
                 } else {
-                    println!("Unknown");
                     Err(FutexError::Unknown)
                 }
             }
         }
     }
 
-    fn notify_all(&self) {
+    fn notify_all(&self) -> usize {
         unsafe {
             libc::syscall(
                 libc::SYS_futex,
                 self.addr(),
                 libc::FUTEX_WAKE | libc::FUTEX_PRIVATE_FLAG,
                 i32::MAX,
-            );
-        };
+            )
+            .unsigned_abs() as usize
+        }
     }
 
-    fn notify_many(&self, count: usize) {
+    fn notify_many(&self, count: usize) -> usize {
         unsafe {
             libc::syscall(
                 libc::SYS_futex,
                 self.addr(),
                 libc::FUTEX_WAKE | libc::FUTEX_PRIVATE_FLAG,
                 count.min(i32::MAX as usize) as i32,
-            );
-        };
+            )
+            .unsigned_abs() as usize
+        }
     }
 }
 
@@ -84,11 +87,11 @@ impl ECMAScriptAtomicWaitImpl for Racy<'_, u64> {
         )
     }
 
-    fn notify_all(&self) {
-        condvar_table::notify_all(self.addr());
+    fn notify_all(&self) -> usize {
+        condvar_table::notify_all(self.addr())
     }
 
-    fn notify_many(&self, count: usize) {
-        condvar_table::notify_many(self.addr(), count);
+    fn notify_many(&self, count: usize) -> usize {
+        condvar_table::notify_many(self.addr(), count)
     }
 }

@@ -19,11 +19,11 @@ impl AtomicWaitImpl for Racy<'_, u32> {
         )
     }
 
-    fn notify_all(&self) {
+    fn notify_all(&self) -> usize {
         condvar_table::notify_all(self.addr());
     }
 
-    fn notify_many(&self, count: usize) {
+    fn notify_many(&self, count: usize) -> usize {
         condvar_table::notify_many(self.addr(), count);
     }
 }
@@ -43,11 +43,11 @@ impl AtomicWaitImpl for Racy<'_, u64> {
         )
     }
 
-    fn notify_all(&self) {
+    fn notify_all(&self) -> usize {
         condvar_table::notify_all(self.addr());
     }
 
-    fn notify_many(&self, count: usize) {
+    fn notify_many(&self, count: usize) -> usize {
         condvar_table::notify_many(self.addr(), count);
     }
 }

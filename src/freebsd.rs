@@ -42,7 +42,7 @@ impl AtomicWaitImpl for Racy<'_, u32> {
         };
     }
 
-    fn notify_all(&self) {
+    fn notify_all(&self) -> usize {
         unsafe {
             libc::_umtx_op(
                 self.addr(),
@@ -54,7 +54,7 @@ impl AtomicWaitImpl for Racy<'_, u32> {
         };
     }
 
-    fn notify_many(&self, count: usize) {
+    fn notify_many(&self, count: usize) -> usize {
         unsafe {
             libc::_umtx_op(
                 self.addr(),
@@ -105,7 +105,7 @@ impl AtomicWaitImpl for Racy<'_, u64> {
         };
     }
 
-    fn notify_all(&self) {
+    fn notify_all(&self) -> usize {
         unsafe {
             libc::_umtx_op(
                 self.addr(),
@@ -117,7 +117,7 @@ impl AtomicWaitImpl for Racy<'_, u64> {
         };
     }
 
-    fn notify_many(&self, count: usize) {
+    fn notify_many(&self, count: usize) -> usize {
         unsafe {
             libc::_umtx_op(
                 self.addr(),

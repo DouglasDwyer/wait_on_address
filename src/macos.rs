@@ -12,7 +12,7 @@ impl AtomicWaitImpl for Racy<'_, u32> {
         value: Self::AtomicInner,
         timeout: Option<Duration>,
     ) -> Result<(), FutexError> {
-        unsafe {
+        let result = unsafe {
             if let Some(time) = timeout {
                 libc::os_sync_wait_on_address_with_timeout(
                     self.addr(),
@@ -21,19 +21,29 @@ impl AtomicWaitImpl for Racy<'_, u32> {
                     libc::OS_SYNC_WAIT_ON_ADDRESS_NONE,
                     libc::CLOCK_MONOTONIC,
                     time.as_nanos().min(u64::MAX as u128) as u64,
-                );
+                )
             } else {
                 libc::os_sync_wait_on_address(
                     self.addr(),
                     value as u64,
                     size_of::<Self>(),
                     libc::OS_SYNC_WAIT_ON_ADDRESS_NONE,
-                );
+                )
+            }
+        };
+        if result >= 0 {
+            Ok(())
+        } else {
+            let errno = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
+            if errno == libc::ETIMEDOUT {
+                Err(FutexError::Timeout)
+            } else {
+                Err(FutexError::Unknown)
             }
         }
     }
 
-    fn notify_all(&self) {
+    fn notify_all(&self) -> usize {
         unsafe {
             libc::os_sync_wake_by_address_all(
                 self.addr(),
@@ -43,7 +53,7 @@ impl AtomicWaitImpl for Racy<'_, u32> {
         };
     }
 
-    fn notify_many(&self, count: usize) {
+    fn notify_many(&self, count: usize) -> usize {
         unsafe {
             libc::os_sync_wake_by_address_any(
                 self.addr(),
@@ -83,7 +93,7 @@ impl AtomicWaitImpl for Racy<'_, u64> {
         }
     }
 
-    fn notify_all(&self) {
+    fn notify_all(&self) -> usize {
         unsafe {
             libc::os_sync_wake_by_address_all(
                 self.addr(),
@@ -93,7 +103,7 @@ impl AtomicWaitImpl for Racy<'_, u64> {
         };
     }
 
-    fn notify_many(&self, count: usize) {
+    fn notify_many(&self, count: usize) -> usize {
         unsafe {
             libc::os_sync_wake_by_address_any(
                 self.addr(),

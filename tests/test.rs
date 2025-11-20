@@ -1,5 +1,5 @@
 use ecmascript_atomics::{Ordering, RacyBox};
-use ecmascript_futex::ECMAScriptAtomicWait;
+use ecmascript_futex::{ECMAScriptAtomicWait, FutexError};
 use std::{
     thread::sleep,
     time::{Duration, Instant},
@@ -9,8 +9,8 @@ use std::{
 fn wake_nothing() {
     let a = RacyBox::new(0u32).unwrap();
     let a = a.as_slice().get(0).unwrap();
-    a.notify_many(1);
-    a.notify_all();
+    assert_eq!(a.notify_many(1), 0);
+    assert_eq!(a.notify_all(), 0);
 }
 
 #[test]
@@ -18,7 +18,7 @@ fn wait_unexpected() {
     let t = Instant::now();
     let a = RacyBox::new(0u32).unwrap();
     let a = a.as_slice().get(0).unwrap();
-    assert_eq!(a.wait(1), Ok(()));
+    assert_eq!(a.wait(1), Err(FutexError::NotEqual));
     assert!(t.elapsed().as_millis() < 100);
 }
 
@@ -31,10 +31,10 @@ fn wait_wake() {
         s.spawn(|| {
             sleep(Duration::from_millis(100));
             a.store(1, Ordering::Unordered);
-            a.notify_many(1);
+            assert_eq!(a.notify_many(1), 1);
         });
         while a.load(Ordering::Unordered) == 0 {
-            a.wait(0);
+            assert!(a.wait(0).is_ok());
         }
         assert_eq!(a.load(Ordering::Unordered), 1);
         assert!((90..400).contains(&t.elapsed().as_millis()));
@@ -45,7 +45,10 @@ fn wait_wake() {
 fn wait_timeout() {
     let a = RacyBox::new(0u32).unwrap();
     let a = a.as_slice().get(0).unwrap();
-    a.wait_timeout(0, Duration::from_millis(1));
+    assert_eq!(
+        a.wait_timeout(0, Duration::from_millis(1)),
+        Err(FutexError::Timeout)
+    );
 }
 
 #[test]
@@ -60,7 +63,7 @@ fn stress_many_waiters_notify_all() {
         for _ in 0..threads {
             s.spawn(move || {
                 while a.load(Ordering::Unordered) == 0 {
-                    a.wait(0);
+                    assert!(a.wait(0).is_ok());
                 }
                 woke.fetch_add(1);
             });
@@ -69,7 +72,7 @@ fn stress_many_waiters_notify_all() {
         // Give threads time to start waiting
         sleep(Duration::from_millis(50));
         a.store(1, Ordering::Unordered);
-        a.notify_all();
+        assert_eq!(a.notify_all(), threads as usize);
     });
     assert_eq!(woke.load(Ordering::Unordered), threads);
 }
@@ -86,19 +89,19 @@ fn stress_ping_pong_many_iters() {
             for _ in 0..iters {
                 while state.load(Ordering::Unordered) != 1 {
                     // Wait while the state is 0; use a short timeout to be resilient to spurious wakes.
-                    state.wait_timeout(0, Duration::from_millis(10));
+                    let _ = state.wait_timeout(0, Duration::from_millis(10)).is_ok();
                 }
                 state.store(0, Ordering::Unordered);
-                state.notify_many(1);
+                assert!(state.notify_many(1) <= 1);
             }
         });
 
         // Producer: set to 1, notify consumer, then wait until it resets to 0.
         for _ in 0..iters {
             state.store(1, Ordering::Unordered);
-            state.notify_many(1);
+            assert!(state.notify_many(1) <= 1);
             while state.load(Ordering::Unordered) != 0 {
-                state.wait_timeout(1, Duration::from_millis(10));
+                let _ = state.wait_timeout(1, Duration::from_millis(10));
             }
         }
     });
