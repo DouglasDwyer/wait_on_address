@@ -81,7 +81,7 @@ fn entry_for_ptr(ptr: *const ()) -> u8 {
     let x_64 = ptr as u64;
     let x_32 = (x_64 >> 32) as u32 ^ x_64 as u32;
     let x_16 = (x_32 >> 16) as u16 ^ x_32 as u16;
-    (x_16 >> 8) as u8 ^ (x_16 >> 2) as u8
+    (x_16 >> 8) as u8 ^ x_16 as u8
 }
 
 /// Holds metadata that gets written while locking.
