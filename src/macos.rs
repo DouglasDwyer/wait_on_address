@@ -1,7 +1,7 @@
-//! 'os_sync_wait_on_address' and its equivalents are only available on macOS 14.4+ /
+//! `os_sync_wait_on_address` and its equivalents are only available on macOS 14.4+ /
 //! iOS 17.4+ / watchOS 10.4+.
 //! To stay compatible with earlier OS versions we resolve the symbols at runtime
-//! with 'dlsym' (cached once) and fall back to the portable 'condvar_table'
+//! with `dlsym` (cached once) and fall back to the portable `condvar_table`
 //! implementation when they are unavailable.
 
 use std::{
@@ -15,23 +15,34 @@ use std::{
 
 use crate::{condvar_table, private::AtomicWaitImpl};
 
+/// Signature for `os_sync_wait_on_address`.
 type WaitFn = unsafe extern "C" fn(*mut c_void, u64, usize, u32) -> libc::c_int;
+
+/// Signature for `os_sync_wait_on_address_with_timeout`.
 type WaitTimeoutFn =
     unsafe extern "C" fn(*mut c_void, u64, usize, u32, libc::clockid_t, u64) -> libc::c_int;
+
+/// Signature for `os_sync_wake_by_address_all` and `os_sync_wake_by_address_any`.
 type WakeFn = unsafe extern "C" fn(*mut c_void, usize, u32) -> libc::c_int;
 
 /// The macOS 14.4+ futex functions, resolved at runtime.
 struct FutexFns {
+    /// Function pointer for `os_sync_wait_on_address`.
     wait: WaitFn,
+    /// Function pointer for `os_sync_wait_on_address_with_timeout`.
     wait_timeout: WaitTimeoutFn,
+    /// Function pointer for `os_sync_wake_by_address_all`.
     wake_all: WakeFn,
+    /// Function pointer for `os_sync_wake_by_address_any`.
     wake_any: WakeFn,
 }
 
 /// Returns the futex functions if the running OS provides them, or `None` on
 /// macOS version < 14.4 (and equivalent). The lookup is performed once and cached.
 fn futex_fns() -> Option<&'static FutexFns> {
+    /// Holds all futex functions.
     static CACHE: OnceLock<Option<FutexFns>> = OnceLock::new();
+
     CACHE
         .get_or_init(|| unsafe {
             let wait = libc::dlsym(libc::RTLD_DEFAULT, c"os_sync_wait_on_address".as_ptr());
